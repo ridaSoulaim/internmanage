@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   QrCode,
   Share2,
-  Check
+  Check,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ export function PayrollClient({
   const [signatoryTitle, setSignatoryTitle] = useState("Human Resources & Compensation Directorate");
   const [certNotes, setCertNotes] = useState("This certificate confirms that all scheduled internship & work hours were performed in good standing.");
   const [copiedRef, setCopiedRef] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Distinct departments
   const departments = Array.from(new Set(employees.map((e) => e.department))).filter(Boolean);
@@ -122,6 +124,47 @@ export function PayrollClient({
 
   const handlePrintCertificate = () => {
     window.print();
+  };
+
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById("printable-pay-certificate");
+    if (!element || !selectedEmployee) return;
+
+    setIsGeneratingPdf(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { jsPDF } = await import("jspdf");
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20; // 10mm margins on sides
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, "PNG", 10, 10, imgWidth, Math.min(imgHeight, pdfHeight - 20));
+
+      const safePeriod = payPeriod.replace(/[^a-zA-Z0-9]/g, "_");
+      const fileName = `Pay_Certificate_${selectedEmployee.firstName}_${selectedEmployee.lastName}_${safePeriod}.pdf`;
+      pdf.save(fileName);
+    } catch (err: unknown) {
+      console.error("PDF generation failed:", err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleCopyReference = () => {
@@ -469,17 +512,17 @@ export function PayrollClient({
       {/* CUSTOM PAY CERTIFICATE MODAL & PRINTABLE DOCUMENT                        */}
       {/* ========================================================================= */}
       <Dialog open={isCertModalOpen} onOpenChange={setIsCertModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 p-0 rounded-3xl">
-          <div className="p-6 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+        <DialogContent className="max-w-5xl lg:max-w-6xl w-[96vw] max-h-[94vh] overflow-y-auto dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 p-0 rounded-3xl shadow-2xl">
+          <div className="p-6 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <DialogTitle className="text-xl font-bold flex items-center gap-2">
                 <FileCheck className="text-blue-600" /> Custom Pay Certificate & Payslip
               </DialogTitle>
               <DialogDescription>
-                Customize parameters and print or export this verified certificate of compensation.
+                Customize parameters and save as a high-resolution PDF or print this verified certificate.
               </DialogDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -490,11 +533,21 @@ export function PayrollClient({
                 {copiedRef ? "Copied Ref" : "Copy Ref"}
               </Button>
               <Button
+                variant="outline"
                 size="sm"
                 onClick={handlePrintCertificate}
-                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 text-xs shadow-md shadow-blue-500/20"
+                className="gap-1.5 text-xs border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800"
               >
-                <Printer size={14} /> Print / Save PDF
+                <Printer size={14} /> Print
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPdf}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs shadow-md shadow-emerald-500/20 font-semibold"
+              >
+                {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                {isGeneratingPdf ? "Creating PDF..." : "Save PDF"}
               </Button>
             </div>
           </div>
@@ -809,13 +862,23 @@ export function PayrollClient({
             </div>
           </div>
 
-          <DialogFooter className="p-6 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800">
+          <DialogFooter className="p-6 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 w-full">
             <Button variant="outline" onClick={() => setIsCertModalOpen(false)}>
-              Close
+              Close Window
             </Button>
-            <Button onClick={handlePrintCertificate} className="bg-blue-600 hover:bg-blue-700 text-white gap-2">
-              <Printer size={16} /> Print Official Pay Certificate
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handlePrintCertificate} className="gap-2">
+                <Printer size={16} /> Print Document
+              </Button>
+              <Button
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPdf}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-md shadow-emerald-500/20 font-semibold"
+              >
+                {isGeneratingPdf ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                {isGeneratingPdf ? "Creating PDF Document..." : "Save PDF File"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

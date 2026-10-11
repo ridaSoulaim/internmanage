@@ -1,0 +1,181 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  role      Role      @default(EMPLOYEE)
+  employee  Employee?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Employee {
+  id            String         @id @default(uuid())
+  userId        String?        @unique
+  user          User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName     String
+  lastName      String
+  department    String
+  position      String
+  salary        Float
+  hireDate      DateTime
+  attendances   Attendance[]
+  leaveRequests LeaveRequest[]
+  assignedTasks      Task[]              @relation("AssignedTasks")
+  milestones         Milestone[]
+  performanceReviews PerformanceReview[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model Milestone {
+  id             String          @id @default(uuid())
+  employeeId     String
+  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  targetWeek     Int?
+  dueDate        DateTime?
+  status         MilestoneStatus @default(PENDING)
+  completedAt    DateTime?
+  mentorFeedback String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model PerformanceReview {
+  id                  String       @id @default(uuid())
+  employeeId          String
+  employee            Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewerName        String
+  reviewCycle         ReviewCycle  @default(MID_TERM)
+  technicalScore      Int
+  communicationScore  Int
+  problemSolvingScore Int
+  initiativeScore     Int
+  overallScore        Float
+  strengths           String
+  areasForGrowth      String?
+  ppoDecision         PpoDecision  @default(UNDER_EVALUATION)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+model Task {
+  id             String       @id @default(uuid())
+  title          String
+  description    String?
+  status         TaskStatus   @default(TODO)
+  priority       TaskPriority @default(MEDIUM)
+  dueDate        DateTime?
+  tags           String?
+  deliverableUrl String?
+  reviewFeedback String?
+  order          Int          @default(0)
+  assigneeId     String?
+  assignee       Employee?    @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Attendance {
+  id         String           @id @default(uuid())
+  employeeId String
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime         @db.Date
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     AttendanceStatus @default(PRESENT)
+  workNotes  String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@unique([employeeId, date])
+}
+
+model LeaveRequest {
+  id         String      @id @default(uuid())
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType  LeaveType   @default(CASUAL)
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  days       Int         @default(1)
+  reason     String
+  status     LeaveStatus @default(PENDING)
+  reviewNote String?
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LATE
+  REMOTE
+}
+
+enum LeaveType {
+  SICK
+  CASUAL
+  EXAM_STUDY
+  ANNUAL
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ReviewCycle {
+  MID_TERM
+  FINAL
+  MONTHLY_CHECKIN
+}
+
+enum PpoDecision {
+  UNDER_EVALUATION
+  RECOMMENDED_FOR_PPO
+  PPO_OFFERED
+  EXTEND_INTERNSHIP
+  NO_OFFER
+}
+
+enum Role {
+  ADMIN
+  HR
+  EMPLOYEE
+}

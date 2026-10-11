@@ -43,10 +43,9 @@ const navItems: NavItem[] = [
     icon: Users,
   },
   {
-    name: "Payroll",
+    name: "Payroll & Payslips",
     href: "/dashboard/payroll",
     icon: CreditCard,
-    roles: ["ADMIN", "HR"],
   },
 ];
 
